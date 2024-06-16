@@ -19,7 +19,19 @@ Future<Map<String, dynamic>> loadConfig() async {
       String strJson = await file.readAsString();
       return json.decode(strJson);
     } else {
-      return {};
+      final defaultConfig = {
+        "host": "",
+        "port": 22,
+        "username": "",
+        "password": "",
+        "path_to_directory": "",
+        "open_name": "",
+        "password_for_decrypt": "",
+        "mount_directory": ""
+      };
+
+      await file.writeAsString(json.encode(defaultConfig));
+      return defaultConfig;
     }
   } catch (e) {
     print('Error reading config file: $e');
@@ -66,7 +78,7 @@ class SSHScreen extends StatefulWidget {
 }
 
 class _SSHScreenState extends State<SSHScreen> {
-  late Map<String, dynamic> config;
+  Map<String, dynamic>? config;
   String output = '';
 
   @override
@@ -80,14 +92,21 @@ class _SSHScreenState extends State<SSHScreen> {
   }
 
   void connectAndExecute() async {
-    final host = config['host'];
-    final port = config['port'];
-    final username = config['username'];
-    final password = config['password'];
-    final path_to_directory = config['path_to_directory'];
-    final open_name = config['open_name'];
-    final password_for_decrypt = config['password_for_decrypt'];
-    final mount_directory = config['mount_directory'];
+    if (config == null) {
+      setState(() {
+        output = 'Config not loaded yet';
+      });
+      return;
+    }
+
+    final host = config!['host'];
+    final port = config!['port'];
+    final username = config!['username'];
+    final password = config!['password'];
+    final path_to_directory = config!['path_to_directory'];
+    final open_name = config!['open_name'];
+    final password_for_decrypt = config!['password_for_decrypt'];
+    final mount_directory = config!['mount_directory'];
 
     print(host);
 
@@ -134,7 +153,7 @@ class _SSHScreenState extends State<SSHScreen> {
     Map<String, dynamic>? updatedConfig = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (BuildContext context) {
-        return ConfigDialog(config: config);
+        return ConfigDialog(config: config ?? {});
       },
     );
     if (updatedConfig != null) {
