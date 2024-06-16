@@ -24,10 +24,7 @@ Future<Map<String, dynamic>> loadConfig() async {
         "port": 22,
         "username": "",
         "password": "",
-        "path_to_directory": "",
-        "open_name": "",
         "password_for_decrypt": "",
-        "mount_directory": ""
       };
 
       await file.writeAsString(json.encode(defaultConfig));
@@ -103,10 +100,7 @@ class _SSHScreenState extends State<SSHScreen> {
     final port = config!['port'];
     final username = config!['username'];
     final password = config!['password'];
-    final path_to_directory = config!['path_to_directory'];
-    final open_name = config!['open_name'];
     final password_for_decrypt = config!['password_for_decrypt'];
-    final mount_directory = config!['mount_directory'];
 
     print(host);
 
@@ -119,12 +113,19 @@ class _SSHScreenState extends State<SSHScreen> {
     try {
       final shell = await client.shell();
       final encoder = const Utf8Encoder();
-      final open_directory = 'echo -n "$password_for_decrypt" | sudo cryptsetup luksOpen --key-file - $path_to_directory $open_name\n';
-      final mount = 'sudo mount /dev/mapper/$open_name $mount_directory\n';
+      String command = "awk '\$4 ~ /noauto/ {print \$1}' /etc/crypttab";
+      final result = await client.run(command);
+      String open_name = utf8.decode(result).toString().trim();
+      final open = 'echo -n "$password_for_decrypt" | sudo -S cryptdisks_start $open_name\n';
+      final mount = 'sudo mount /dev/mapper/$open_name\n';
+
       shell.write(encoder.convert('echo $password | sudo -S clear\n'));
-      shell.write(encoder.convert(open_directory));
+      shell.write(encoder.convert(open));
       shell.write(encoder.convert(mount));
       shell.write(encoder.convert('exit\n'));
+
+      print('open command: $open');
+      print('mount command: $mount');
 
       final out = await shell.stdout
           .cast<List<int>>()
@@ -136,8 +137,8 @@ class _SSHScreenState extends State<SSHScreen> {
           .transform(const Utf8Decoder())
           .join();
 
-      print(out);
-      print(error);
+      print('stdout: $out');
+      print('stderr: $error');
 
       setState(() {
         output = 'The directory is open and ready';
@@ -167,9 +168,21 @@ class _SSHScreenState extends State<SSHScreen> {
   Future<void> _scanQRCode() async {
     try {
       var result = await BarcodeScanner.scan();
-      setState(() {
-        output = result.rawContent;
-      });
+      List<String> lines = result.rawContent.split('\n');
+      if (lines.length >= 2) {
+        setState(() {
+          output = result.rawContent;
+          config!['username'] = lines[0];
+          config!['host'] = lines[1];
+          config!['password'] = lines[2];
+          config!['password_for_decrypt'] = lines[3];
+        });
+        await saveConfig(config!);
+      } else {
+        setState(() {
+          output = 'QR code does not contain enough information.';
+        });
+      }
     } catch (e) {
       setState(() {
         output = 'Failed to get QR code: $e';
@@ -272,24 +285,9 @@ class _ConfigDialogState extends State<ConfigDialog> {
               controller: TextEditingController(text: widget.config['password']),
             ),
             TextField(
-              decoration: InputDecoration(labelText: 'Path to directory'),
-              onChanged: (value) => _updatedConfig['path_to_directory'] = value,
-              controller: TextEditingController(text: widget.config['path_to_directory']),
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: 'Open name'),
-              onChanged: (value) => _updatedConfig['open_name'] = value,
-              controller: TextEditingController(text: widget.config['open_name']),
-            ),
-            TextField(
               decoration: InputDecoration(labelText: 'Password for decrypt'),
               onChanged: (value) => _updatedConfig['password_for_decrypt'] = value,
               controller: TextEditingController(text: widget.config['password_for_decrypt']),
-            ),
-            TextField(
-              decoration: InputDecoration(labelText: 'Mount directory'),
-              onChanged: (value) => _updatedConfig['mount_directory'] = value,
-              controller: TextEditingController(text: widget.config['mount_directory']),
             ),
           ],
         ),
