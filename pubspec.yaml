@@ -30,8 +30,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dartssh2: 2.9.1-pre
   path_provider: ^2.0.2
+  dartssh2: ^2.9.1-pre
+  qr_flutter: ^4.0.0
+  barcode_scan2: ^4.1.0
+
 
 
   # The following adds the Cupertino Icons font to your application.

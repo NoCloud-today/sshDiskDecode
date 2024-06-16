@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/services.dart';
+import 'package:barcode_scan2/barcode_scan2.dart';
 
 void main() {
   runApp(const MyApp());
@@ -164,6 +164,19 @@ class _SSHScreenState extends State<SSHScreen> {
     }
   }
 
+  Future<void> _scanQRCode() async {
+    try {
+      var result = await BarcodeScanner.scan();
+      setState(() {
+        output = result.rawContent;
+      });
+    } catch (e) {
+      setState(() {
+        output = 'Failed to get QR code: $e';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (config == null) {
@@ -190,6 +203,11 @@ class _SSHScreenState extends State<SSHScreen> {
               ElevatedButton(
                 onPressed: _editConfig,
                 child: const Text('Edit Config'),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _scanQRCode,
+                child: const Text('Scan QR Code'),
               ),
               const SizedBox(height: 20),
               Expanded(
